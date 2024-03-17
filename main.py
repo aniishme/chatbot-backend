@@ -10,6 +10,12 @@ from langchain_community.llms import  HuggingFaceEndpoint
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 
+from routes.user import user_router
+from model import models
+from database import engine
+
+import uvicorn
+
 
 import os
 
@@ -20,6 +26,8 @@ class Query(BaseModel):
     query: str
 
 load_dotenv()
+
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -44,6 +52,9 @@ def get_conversation_chain(vectorstore):
     return conversation_chain
 
 
+app.include_router(user_router, prefix="/user", tags=["user"])
+
+
 
 @app.post("/answer/")
 async def get_answer(query:Query):
@@ -57,3 +68,6 @@ async def get_answer(query:Query):
             response = chain.invoke({'question': query.query})
             
             return {"response": response}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
