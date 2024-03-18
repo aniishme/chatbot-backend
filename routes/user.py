@@ -6,12 +6,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 
+from middleware.middleware import is_auth
 
 from model.schemas import UserCreate, UserLogin
 from model.models import User
 
-SECRET_KEY = "your_secret_key"
-ALGORITHM = "HS256"
+from variables import SECRET_KEY, ALGORITHM
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 user_router  = APIRouter()
@@ -56,3 +57,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         )
         return {"access_token": access_token, "token_type": "bearer"}
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+
+@user_router.get('/hello/')
+def get_hello(email:str = Depends(is_auth)):
+    return {"message":"Hello"}
