@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 
 from middleware.middleware import is_auth
 
-from model.schemas import UserCreate, UserLogin
+from model.schemas import UserCreate, UserLogin, UserToken
 from model.models import User
 
 from variables import SECRET_KEY, ALGORITHM
@@ -41,7 +41,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     hash_password = pwd_context.hash(user.password)
 
     # Create a new user instance and save it to the database
-    db_user = User(name=user.name, email=user.email, password=hash_password)
+    db_user = User(name=user.name, email=user.email, password=hash_password, role=user.role)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -53,11 +53,11 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if db_user and pwd_context.verify(user.password, db_user.password):
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.email}, expires_delta=access_token_expires
+            data={"id":db_user.id,"email":user.email}, expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer", "role":db_user.role}
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
 @user_router.get('/hello/')
-def get_hello(email:str = Depends(is_auth)):
-    return {"message":"Hello"}
+def get_hello(user:UserToken = Depends(is_auth)):
+    return user

@@ -1,25 +1,27 @@
 # main.py
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import pickle
-from PyPDF2 import PdfReader
 from langchain_community.vectorstores import FAISS
 from langchain_community.llms import  HuggingFaceEndpoint
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 
 from routes.user import user_router
+from routes.query import query_router
 from model import models
+from pydantic import BaseModel
 from database import engine
 
 import uvicorn
 
-
 import os
 
-from pydantic import BaseModel
+from middleware.middleware import is_auth
+
+from model.schemas import UserToken
+
 
 class Query(BaseModel):
     store_name: str
@@ -53,11 +55,12 @@ def get_conversation_chain(vectorstore):
 
 
 app.include_router(user_router, prefix="/user", tags=["user"])
+app.include_router(query_router, prefix="/query", tags=["query"])
 
 
 
 @app.post("/answer/")
-async def get_answer(query:Query):
+async def get_answer(query:Query, user:UserToken = Depends(is_auth)):
      store = "disastermodel"
      if os.path.exists(f"{store}.pkl"):
         with open(f"{store}.pkl", "rb") as f:
@@ -67,7 +70,7 @@ async def get_answer(query:Query):
         
             response = chain.invoke({'question': query.query})
             
-            return {"response": response}
+            return {"response": response, "user":user}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="localhost", port=8000, reload=True)
