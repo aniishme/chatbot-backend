@@ -20,3 +20,4 @@ class QueryCreate(BaseModel):
     title: str
     type: str
     description: str
+

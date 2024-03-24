@@ -1,13 +1,9 @@
 # main.py
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File
+from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-import pickle
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import  HuggingFaceEndpoint
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
-
 from routes.user import user_router
 from routes.query import query_router
 from model import models
@@ -16,16 +12,20 @@ from database import engine
 
 import uvicorn
 
-import os
-
 from middleware.middleware import is_auth
 
 from model.schemas import UserToken
+
+from chatbot import process_dataset, user_input
+
 
 
 class Query(BaseModel):
     store_name: str
     query: str
+
+class Chat(BaseModel):
+    query:str
 
 load_dotenv()
 
@@ -43,34 +43,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_conversation_chain(vectorstore):
-    llm = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-Instruct-v0.2", temperature=0.5, model_kwargs={"max_length":256})
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(),
-        memory=memory
-    )
-    return conversation_chain
-
 
 app.include_router(user_router, prefix="/user", tags=["user"])
 app.include_router(query_router, prefix="/query", tags=["query"])
 
 
+@app.post("/upload/")
+async def create_upload_files(files: List[UploadFile] = File(...)):
+    print(files)
+    process_dataset(files)
+    return {"message":"Dataset processed successfylly"}
 
-@app.post("/answer/")
-async def get_answer(query:Query, user:UserToken = Depends(is_auth)):
-     store = "disastermodel"
-     if os.path.exists(f"{store}.pkl"):
-        with open(f"{store}.pkl", "rb") as f:
-            VectorStore = pickle.load(f)
 
-            chain = get_conversation_chain(VectorStore)
-        
-            response = chain.invoke({'question': query.query})
-            
-            return {"response": response, "user":user}
+@app.post('/chat')
+async def get_chat(query:Chat):
+    if query.query:
+        response = user_input(query.query)
+
+    return response
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="localhost", port=8000, reload=True)

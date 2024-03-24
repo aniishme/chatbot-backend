@@ -35,3 +35,9 @@ class Message(Base):
     user = relationship('User', back_populates='messages')
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
+class FileData(Base):
+    __tablename__ = 'filedata'
+    id = Column(Integer, primary_key=True)
+    title = Column(String, index=True)
+    path = Column(String, index=True)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
