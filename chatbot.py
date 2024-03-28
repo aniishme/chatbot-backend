@@ -15,6 +15,13 @@ from variables import GOOGLE_API_KEY
 load_dotenv()
 genai.configure(api_key=GOOGLE_API_KEY)
 
+safety_settings_NONE=[
+    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+]
+
 
 def get_pdf_text(pdf_docs):
     text=""
@@ -46,7 +53,7 @@ def process_dataset(pdf_docs):
 def get_conversational_chain():
 
     prompt_template = """
-    Please provide a HTML friendly detailed and respectful answer as a disaster decision support system to the following question based on the provided context. If the answer is not available in the context try to use your capability to generate response as a disaster decision support system, if not please respond with "The answer is not available in the context."
+    Please provide a friendly detailed and respectful answer as a disaster decision support chatbot to the following question based on the provided context.
 
     Context: {context}
 
@@ -57,6 +64,7 @@ def get_conversational_chain():
 
     model = ChatGoogleGenerativeAI(model="gemini-pro",
                              temperature=0.3)
+    model.client = genai.GenerativeModel(model_name='gemini-pro', safety_settings=safety_settings_NONE)
 
     prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
